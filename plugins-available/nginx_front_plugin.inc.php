@@ -248,6 +248,8 @@ class nginx_front_plugin {
 			$tpl->setLoop('redirects',$rewrite_rules);
 		}
 
+        // I promise, I\ll find where that config file is ;)
+        $web_config['nginx_front_vhost_conf_dir'] = "/etc/nginx/front/";
 
         //remove old if any
         if($data['old']['domain'] != '' ) {
@@ -257,20 +259,23 @@ class nginx_front_plugin {
             unlink($vhost_file_disabled);
         }
 
-        $vhost_file = escapeshellcmd($web_config['nginx_front_vhost_conf_dir'].'/'.$data['new']['domain'].'.conf');
-        unlink($vhost_file);
-        $vhost_file_disabled = escapeshellcmd($web_config['nginx_front_vhost_conf_dir'].'/'.$data['new']['domain'].'.disabled');
-        unlink($vhost_file_disabled);
+        //save new config, if any
+        if($data['new']['domain'] != '' ) {
+            $vhost_file = escapeshellcmd($web_config['nginx_front_vhost_conf_dir'].'/'.$data['new']['domain'].'.conf');
+            unlink($vhost_file);
+            $vhost_file_disabled = escapeshellcmd($web_config['nginx_front_vhost_conf_dir'].'/'.$data['new']['domain'].'.disabled');
+            unlink($vhost_file_disabled);
 
 
-        if($data['new']['active'] == 'n') {
-            $vhost_file = $vhost_file_disabled;
+            if($data['new']['active'] == 'n') {
+                $vhost_file = $vhost_file_disabled;
+            }
+
+            //* Write vhost file
+            file_put_contents($vhost_file,$tpl->grab());
+            $app->log('Writing the vhost file: '.$vhost_file,LOGLEVEL_DEBUG);
+            unset($tpl);
         }
-
-		//* Write vhost file
-		file_put_contents($vhost_file,$tpl->grab());
-		$app->log('Writing the vhost file: '.$vhost_file,LOGLEVEL_DEBUG);
-		unset($tpl);
 
 //        $app->services->restartServiceDelayed('nginx','reload');
 	}
@@ -281,6 +286,9 @@ class nginx_front_plugin {
 		// load the server configuration options
 		$app->uses('getconf');
 		$web_config = $app->getconf->get_server_config($conf['server_id'], 'web');
+
+        // I promise, I\ll find where that config file is ;)
+        $web_config['nginx_front_vhost_conf_dir'] = "/etc/nginx/front/";
 
 		if($data['old']['type'] != 'vhost' && $data['old']['parent_domain_id'] > 0) {
 			//* This is a alias domain or subdomain, so we have to update the website instead
