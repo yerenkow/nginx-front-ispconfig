@@ -1,0 +1,66 @@
+server {
+        listen 80;
+#        listen <tmpl_var name='ip_address'>:80;
+<tmpl_if name='ipv6_enabled'>
+        listen [<tmpl_var name='ipv6_address'>]:80 ipv6only=on;
+</tmpl_if>
+		
+<tmpl_if name='ssl_enabled'>
+        listen 443 ssl;
+#        listen <tmpl_var name='ip_address'>:443 ssl;
+<tmpl_if name='ipv6_enabled'>
+#        listen [<tmpl_var name='ipv6_address'>]:443 ssl ipv6only=on;
+</tmpl_if>
+#        ssl_certificate <tmpl_var name='document_root'>/ssl/<tmpl_var name='ssl_domain'>.crt;
+#        ssl_certificate_key <tmpl_var name='document_root'>/ssl/<tmpl_var name='ssl_domain'>.key;
+</tmpl_if>
+        
+        server_name <tmpl_var name='domain'> <tmpl_var name='alias'>;
+
+        access_log off;
+        error_log  /var/log/nginx/error.log error;
+        root   <tmpl_var name='web_document_root_www'>;
+        autoindex off;
+
+<tmpl_if name='seo_redirect_enabled'>
+        if ($http_host = "<tmpl_var name='seo_redirect_origin_domain'>") {
+            rewrite ^ $scheme://<tmpl_var name='seo_redirect_target_domain'>$request_uri permanent;
+        }
+</tmpl_if>
+		
+<tmpl_loop name="redirects">		
+        if ($http_host ~* "<tmpl_var name='rewrite_domain'>$") {
+            rewrite ^/(.+)$ <tmpl_var name='rewrite_target'>$1 <tmpl_var name='rewrite_type'>;
+        }
+</tmpl_loop>
+#        index index.html index.htm index.php index.cgi index.pl index.xhtml;
+
+        location / {
+                limit_except GET POST {
+                deny all;
+                }
+            proxy_pass http://127.0.0.1:82;
+            proxy_redirect http://127.0.0.1:82/ /;
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Real-IP $remote_addr;
+            limit_req zone=one burst=8 nodelay;
+        }
+
+        location ~* ^.+\.(jpg|jpeg|gif|png|svg|js|css|mp3|ogg|mpe?g|avi|zip|gz|bz2?|rar|cur)$ {
+            root <tmpl_var name='web_document_root_www'>;
+            expires max;
+            error_page 404 = @fallback;
+        }
+
+        location @fallback {
+            proxy_pass http://127.0.0.1:82;
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+
+<tmpl_loop name="nginx_directives">
+        <tmpl_var name='nginx_directive'>
+</tmpl_loop>
+}
